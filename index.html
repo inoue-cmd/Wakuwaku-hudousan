@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>超本格・不動産王シミュレーション</title>
+    <style>
+        /* モダンなダークテーマUI */
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #0f172a; color: #e2e8f0; padding: 15px; margin: 0; }
+        .container { max-width: 1200px; margin: 0 auto; background: #1e293b; padding: 20px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #334155; position: relative; }
+        h1 { text-align: center; color: #38bdf8; border-bottom: 2px solid #38bdf8; padding-bottom: 10px; letter-spacing: 1px; text-transform: uppercase; font-size: 1.5em; }
+        h2, h3 { color: #f8fafc; margin-top: 0; }
+
+        /* 初期設定画面 */
+        #setup-screen { text-align: center; padding: 30px 10px; }
+        .setup-form { display: flex; flex-direction: column; align-items: center; gap: 15px; margin: 20px 0 30px 0; }
+        .input-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
+        .input-row input { padding: 12px; font-size: 1.2em; background: #0f172a; color: #38bdf8; border: 1px solid #475569; border-radius: 8px; text-align: right; }
+        .input-row span { font-size: 1.1em; color: #94a3b8; font-weight: bold; }
+        #init-year { width: 90px; }
+        #init-month { width: 60px; }
+        #init-money { width: 140px; }
+        
+        .btn-start { padding: 12px 30px; font-size: 1.1em; background: #0284c7; color: white; border: none; border-radius: 8px; cursor: pointer; transition: 0.3s; font-weight: bold; margin: 5px; width: 100%; max-width: 300px; box-sizing: border-box; }
+        .btn-start:hover { background: #0369a1; }
+        .btn-load { background: #10b981; }
+        .btn-load:hover { background: #059669; }
+
+        /* ゲーム画面 */
+        #game-screen { display: none; }
+        
+        /* ダッシュボード */
+        .dashboard { display: flex; flex-wrap: wrap; background: #0f172a; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #334155; gap: 10px; }
+        .dash-item { text-align: center; flex: 1; min-width: 45%; margin: 5px 0; }
+        .dash-label { font-size: 0.85em; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+        .dash-value { font-size: 1.4em; font-weight: bold; color: #f8fafc; word-break: break-word; }
+        .highlight { color: #fbbf24; }
+        .income-color { color: #10b981; }
+
+        /* コントロールパネル */
+        .controls { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .btn-next { flex: 2; min-width: 250px; padding: 15px; background: linear-gradient(135deg, #e11d48, #be123c); color: white; border: none; border-radius: 8px; font-size: 1.1em; font-weight: bold; cursor: pointer; transition: transform 0.1s, box-shadow 0.2s; box-shadow: 0 4px 15px rgba(225, 29, 72, 0.4); }
+        .btn-next:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(225, 29, 72, 0.6); }
+        .btn-next:active:not(:disabled) { transform: translateY(1px); }
+        .btn-next:disabled { background: #475569; box-shadow: none; cursor: not-allowed; transform: none; }
+        
+        .btn-save { flex: 1; min-width: 100px; padding: 15px; background: #334155; color: white; border: none; border-radius: 8px; font-size: 1.1em; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-save:hover { background: #475569; }
+
+        /* 追加融資パネル */
+        .fund-panel { display: flex; gap: 10px; margin-bottom: 25px; align-items: center; background: #0f172a; padding: 12px 15px; border-radius: 8px; border: 1px dashed #475569; flex-wrap: wrap; }
+        .fund-panel label { color: #94a3b8; font-weight: bold; }
+        .fund-panel-inputs { display: flex; flex: 1; min-width: 200px; align-items: center; gap: 5px; }
+        .fund-panel input { flex: 1; padding: 12px; font-size: 1.1em; background: #1e293b; color: #38bdf8; border: 1px solid #475569; border-radius: 6px; text-align: right; min-width: 0; }
+        .fund-panel span { color: #94a3b8; font-weight: bold; white-space: nowrap; }
+        .btn-add-fund { padding: 12px 20px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; }
+        .btn-add-fund:hover { background: #2563eb; }
+
+        /* アコーディオンとマーケットエリア */
+        .market-category { margin-bottom: 15px; background: #1e293b; border: 1px solid #334155; border-radius: 8px; overflow: hidden; }
+        .market-category summary { padding: 15px; background: #1e293b; font-size: 1.05em; font-weight: bold; color: #38bdf8; cursor: pointer; list-style: none; display: flex; align-items: center; border-bottom: 1px solid transparent; transition: 0.3s; }
+        .market-category summary:hover { background: #334155; }
+        .market-category[open] summary { border-bottom: 1px solid #334155; }
+        .market-category summary::-webkit-details-marker { display: none; }
+        .market-category summary::before { content: '▶'; margin-right: 10px; font-size: 0.8em; transition: transform 0.2s; color: #94a3b8; }
+        .market-category[open] summary::before { transform: rotate(90deg); }
+        
+        .market-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 15px; padding: 15px; background: #0f172a; }
+        .market-board { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 15px; transition: 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .market-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 10px; margin-bottom: 12px; }
+        .market-header h3 { margin: 0; color: #f8fafc; font-size: 1em; }
+        .prop-count { background: #0284c7; color: white; padding: 3px 8px; border-radius: 20px; font-size: 0.8em; font-weight: bold; white-space: nowrap; margin-left: 5px; }
+        
+        .price-info { font-size: 1.05em; margin-bottom: 10px; word-break: break-word; }
+        .price-up { color: #f43f5e; font-weight: bold; }
+        .price-down { color: #3b82f6; font-weight: bold; }
+        .rent-info { font-size: 0.85em; color: #cbd5e1; background: #0f172a; padding: 10px; border-radius: 6px; margin-bottom: 15px; line-height: 1.4; border: 1px solid #334155;}
+
+        .action-btns { display: flex; gap: 8px; }
+        .action-btns button { flex: 1; padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 0.95em; }
+        .btn-buy { background-color: #10b981; color: white; }
+        .btn-buy:hover:not(:disabled) { background-color: #059669; }
+        .btn-buy:disabled { background-color: #334155; color: #64748b; cursor: not-allowed; }
+        .btn-sell { background-color: #f59e0b; color: white; }
+        .btn-sell:hover:not(:disabled) { background-color: #d97706; }
+        .btn-sell:disabled { background-color: #334155; color: #64748b; cursor: not-allowed; }
+
+        /* ログエリア */
+        .log { background: #0f172a; padding: 15px; font-size: 0.9em; height: 180px; overflow-y: scroll; border-radius: 8px; border: 1px solid #334155; color: #cbd5e1; line-height: 1.6; }
+        .log-date { color: #38bdf8; font-weight: bold; }
+        .log-income { color: #10b981; }
+        .log-event { color: #f59e0b; }
+
+        /* トースト通知 */
+        #save-toast {
+            visibility: hidden;
+            min-width: 200px;
+            background-color: #10b981;
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 12px;
+            position: fixed;
+            z-index: 1000;
+            left: 50%;
+            bottom: 20px;
+            transform: translateX(-50%);
+            font-size: 1.1em;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s;
+        }
+        #save-toast.show { visibility: visible; opacity: 1; bottom: 40px; }
+
+        /* ローディング演出 */
+        #loading-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.85); 
+            backdrop-filter: blur(4px); 
+            z-index: 2000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            opacity: 0; visibility: hidden;
+            transition: opacity 0.2s ease-in-out;
+        }
+        #loading-overlay.active { opacity: 1; visibility: visible; }
+        .spinner {
+            width: 50px; height: 50px; border: 6px solid #334155; border-top-color: #38bdf8;
+            border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loading-text { color: #f8fafc; font-size: 1.2em; font-weight: bold; text-align: center; line-height: 1.5; }
+
+        /* スマホ向けレイアウト最適化 */
+        @media (max-width: 600px) {
+            .input-row { flex-direction: column; align-items: stretch; gap: 5px; margin-bottom: 15px; }
+            .input-row div { display: flex; justify-content: center; align-items: center; gap: 10px; }
+            .fund-panel { flex-direction: column; align-items: stretch; gap: 10px; }
+            .fund-panel label { text-align: center; margin-bottom: 5px; }
+            .fund-panel-inputs { width: 100%; }
+            .btn-add-fund { width: 100%; }
+            .controls { flex-direction: column; }
+            .btn-next, .btn-save { width: 100%; }
+            .dash-item { min-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ローディング演出用HTML -->
+<div id="loading-overlay">
+    <div class="spinner"></div>
+    <div class="loading-text">1ヶ月経過...<br>収益と相場を計算中</div>
+</div>
+
+<div class="container">
+    <h1>🏢 Real Estate Tycoon</h1>
+
+    <!-- 初期設定画面 -->
+    <div id="setup-screen">
+        <h2>資産運用シミュレーションへようこそ</h2>
+        <p style="color: #94a3b8; font-size: 0.9em;">開始時期と初期の自己資金を入力して新しいゲームを始めるか、<br>前回の続きから再開してください。</p>
+        
+        <div class="setup-form">
+            <div class="input-row">
+                <div>
+                    <input type="number" id="init-year" value="2026" min="1900" max="2100"> <span>年</span>
+                </div>
+                <div>
+                    <input type="number" id="init-month" value="8" min="1" max="12"> <span>月スタート</span>
+                </div>
+            </div>
+            <div class="input-row">
+                <div>
+                    <span>初期資金: </span>
+                    <input type="number" id="init-money" value="5000" min="100"> <span>万円</span>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn-start" onclick="startGame()">▶ 新しく始める</button><br>
+        <button class="btn-start btn-load" id="btn-load-title" onclick="loadGame()" style="display: none;">💾 続きから再開</button>
+    </div>
+
+    <!-- ゲーム画面 -->
+    <div id="game-screen">
+        <div class="dashboard">
+            <div class="dash-item" style="min-width: 100%; border-right: none; border-bottom: 1px dashed #334155; padding-bottom: 10px;">
+                <div class="dash-label">現在の日付 / 経過</div>
+                <div class="dash-value" style="color: #38bdf8;" id="display-date">2026年8月 (1ヶ月目)</div>
+            </div>
+            <div class="dash-item">
+                <div class="dash-label">直近の家賃収入</div>
+                <div class="dash-value income-color" id="display-income">+0万円</div>
+            </div>
+            <div class="dash-item">
+                <div class="dash-label">現金残高</div>
+                <div class="dash-value" id="display-cash">0万円</div>
+            </div>
+            <div class="dash-item" style="min-width: 100%; border-right: none; margin-top: 5px;">
+                <div class="dash-label">総資産（現金＋物件価値）</div>
+                <div class="dash-value highlight" id="display-networth">0万円</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn-next" id="btn-next-month" onclick="nextMonth()">▶ 1ヶ月進める（家賃＆相場変動）</button>
+            <button class="btn-save" onclick="saveGame()">💾 セーブ</button>
+        </div>
+
+        <!-- 資金追加パネル -->
+        <div class="fund-panel">
+            <label for="add-funds-amount">🏦 追加融資 / 増資</label>
+            <div class="fund-panel-inputs">
+                <input type="number" id="add-funds-amount" placeholder="金額を入力" min="1">
+                <span>万円</span>
+            </div>
+            <button class="btn-add-fund" onclick="addFunds()">💰 資金を追加</button>
+        </div>
+
+        <h2 style="border-bottom: 1px solid #334155; padding-bottom: 10px; font-size: 1.2em;">📊 物件マーケット</h2>
+        <div id="market-area">
+            <!-- JavaScriptでアコーディオンを展開 -->
+        </div>
+
+        <h2 style="border-bottom: 1px solid #334155; padding-bottom: 10px; margin-top: 25px; font-size: 1.2em;">📝 運用ログ</h2>
+        <div class="log" id="log-area">
+            ゲームを開始しました。<br>
+        </div>
+    </div>
+</div>
+
+<!-- セーブ完了通知用のトースト -->
+<div id="save-toast">💾 セーブ完了！</div>
+
+<script>
+    // --- データ構造 ---
+    let state = { 
+        month: 1, 
+        cash: 0, 
+        netWorth: 0, 
+        lastIncome: 0,
+        currentYear: 2026,
+        currentMonth: 8
+    };
+    
+    const baseProperties = {
+        prop1: { name: "地方の青空駐車場", basePrice: 500, currentPrice: 500, rent: 4, count: 0 },
+        prop2: { name: "地方の築古戸建て", basePrice: 800, currentPrice: 800, rent: 8, count: 0 },
+        prop3: { name: "都心の中古ワンルーム", basePrice: 2500, currentPrice: 2500, rent: 10, count: 0 },
+        prop4: { name: "都心のコインパーキング", basePrice: 5000, currentPrice: 5000, rent: 20, count: 0 },
+        prop5: { name: "郊外の木造アパート一棟", basePrice: 8000, currentPrice: 8000, rent: 60, count: 0 },
+        prop6: { name: "都心の高級タワマン一室", basePrice: 15000, currentPrice: 15000, rent: 50, count: 0 },
+        prop7: { name: "地方の一棟RCマンション", basePrice: 30000, currentPrice: 30000, rent: 250, count: 0 },
+        prop8: { name: "ロードサイド大型商業店舗", basePrice: 50000, currentPrice: 50000, rent: 350, count: 0 },
+        prop9: { name: "メガソーラー発電所", basePrice: 100000, currentPrice: 100000, rent: 800, count: 0 },
+        prop10: { name: "都心の中規模オフィスビル", basePrice: 300000, currentPrice: 300000, rent: 1200, count: 0 },
+        prop11: { name: "地方のショッピングモール", basePrice: 800000, currentPrice: 800000, rent: 4000, count: 0 },
+        prop12: { name: "大型物流倉庫センター", basePrice: 1500000, currentPrice: 1500000, rent: 6000, count: 0 },
+        prop13: { name: "都心一等地の超高層ビル", basePrice: 8000000, currentPrice: 8000000, rent: 25000, count: 0 },
+        prop14: { name: "巨大テーマパーク", basePrice: 30000000, currentPrice: 30000000, rent: 120000, count: 0 },
+        prop15: { name: "国際空港の運営権", basePrice: 80000000, currentPrice: 80000000, rent: 350000, count: 0 },
+        prop16: { name: "スマートシティ全体開発", basePrice: 200000000, currentPrice: 200000000, rent: 800000, count: 0 }
+    };
+    
+    let properties = JSON.parse(JSON.stringify(baseProperties));
+
+    function formatMoney(amountInMan) {
+        if (amountInMan >= 100000000) { 
+            let cho = Math.floor(amountInMan / 100000000);
+            let oku = Math.floor((amountInMan % 100000000) / 10000);
+            return oku > 0 ? `${cho}兆${oku}億円` : `${cho}兆円`;
+        } else if (amountInMan >= 10000) { 
+            let oku = Math.floor(amountInMan / 10000);
+            let man = amountInMan % 10000;
+            return man > 0 ? `${oku}億${man.toLocaleString()}万円` : `${oku}億円`;
+        } else {
+            return `${amountInMan.toLocaleString()}万円`;
+        }
+    }
+
+    window.onload = function() {
+        if (localStorage.getItem('tycoon_state')) {
+            document.getElementById('btn-load-title').style.display = 'inline-block';
+        }
+    };
+
+    function buildMarketUI() {
+        const categories = [
+            { name: "🌱【初級】1億円未満の物件", filter: p => p.basePrice < 10000 },
+            { name: "🏢【中級】1億円〜10億円未満", filter: p => p.basePrice >= 10000 && p.basePrice < 100000 },
+            { name: "🏙️【上級】10億円〜100億円未満", filter: p => p.basePrice >= 100000 && p.basePrice < 1000000 },
+            { name: "👑【超級】100億円〜 巨大プロジェクト", filter: p => p.basePrice >= 1000000 }
+        ];
+
+        let html = '';
+        categories.forEach((cat, index) => {
+            let openAttr = index === 0 ? 'open' : ''; 
+            html += `<details class="market-category" ${openAttr}>
+                        <summary>${cat.name}</summary>
+                        <div class="market-grid">`;
+            
+            for (let key in properties) {
+                let p = properties[key];
+                if (cat.filter(p)) {
+                    html += `
+                    <div class="market-board">
+                        <div class="market-header">
+                            <h3>${p.name}</h3>
+                            <span class="prop-count" id="count-${key}">所有: 0</span>
+                        </div>
+                        <div class="price-info">
+                            相場: <span id="price-${key}"></span> <span id="arrow-${key}"></span>
+                        </div>
+                        <div class="rent-info">
+                            <strong>満室時想定:</strong> ${formatMoney(p.rent)}/月<br>
+                            <strong>表面利回り:</strong> <span id="yield-${key}"></span><br>
+                            <span style="font-size: 0.9em; color: #64748b;">(初期価格: ${formatMoney(p.basePrice)})</span>
+                        </div>
+                        <div class="action-btns">
+                            <button class="btn-buy" id="btn-buy-${key}" onclick="buy('${key}')">購入</button>
+                            <button class="btn-sell" id="btn-sell-${key}" onclick="sell('${key}')">売却</button>
+                        </div>
+                    </div>`;
+                }
+            }
+            html += `</div></details>`;
+        });
+        document.getElementById('market-area').innerHTML = html;
+    }
+
+    function startGame() {
+        let initYear = parseInt(document.getElementById('init-year').value, 10);
+        let initMonth = parseInt(document.getElementById('init-month').value, 10);
+        let initMoney = parseInt(document.getElementById('init-money').value, 10);
+        
+        if (isNaN(initYear) || isNaN(initMonth) || initMonth < 1 || initMonth > 12) {
+            alert("正しい年月を入力してください"); return;
+        }
+        if (isNaN(initMoney) || initMoney <= 0) {
+            alert("正しい金額を入力してください"); return;
+        }
+        
+        state = { 
+            month: 1, 
+            cash: initMoney, 
+            netWorth: initMoney, 
+            lastIncome: 0,
+            currentYear: initYear,
+            currentMonth: initMonth
+        };
+        properties = JSON.parse(JSON.stringify(baseProperties)); 
+        
+        buildMarketUI();
+        switchScreen();
+        updateScreen();
+        
+        // ログのリセット
+        document.getElementById('log-area').innerHTML = `<span class="log-date">【${state.currentYear}年${state.currentMonth}月】</span><br>ゲームを開始しました。<br>`;
+    }
+
+    function switchScreen() {
+        document.getElementById('setup-screen').style.display = 'none';
+        document.getElementById('game-screen').style.display = 'block';
+    }
+
+    function addFunds() {
+        let inputEl = document.getElementById('add-funds-amount');
+        let amount = parseInt(inputEl.value, 10);
+        
+        if (isNaN(amount) || amount <= 0) {
+            alert("正しい金額を入力してください");
+            return;
+        }
+        
+        state.cash += amount;
+        inputEl.value = ''; 
+        
+        addLog(`<span style="color: #38bdf8;">🏦 【増資】 ${formatMoney(amount)} を手元資金に追加しました。</span><br><hr style="border: 0; border-top: 1px dashed #334155; margin: 5px 0;">`);
+        updateScreen();
+    }
+
+    function nextMonth() {
+        const btnNext = document.getElementById('btn-next-month');
+        const overlay = document.getElementById('loading-overlay');
+        
+        btnNext.disabled = true;
+        overlay.classList.add('active');
+
+        setTimeout(() => {
+            state.month++;
+            // 年月の進行処理
+            state.currentMonth++;
+            if (state.currentMonth > 12) {
+                state.currentMonth = 1;
+                state.currentYear++;
+            }
+
+            let totalIncome = 0;
+            let logText = `<span class="log-date">【${state.currentYear}年${state.currentMonth}月】</span><br>`;
+
+            for (let key in properties) {
+                let p = properties[key];
+                
+                if (p.count > 0) {
+                    let occupancyRate = (Math.random() * 30 + 70) / 100; 
+                    let actualRent = Math.floor(p.rent * p.count * occupancyRate);
+                    totalIncome += actualRent;
+                }
+
+                let changeRate = (Math.random() * 10 - 5) / 100;
+                p.currentPrice = Math.max(100, Math.floor(p.currentPrice * (1 + changeRate))); 
+            }
+
+            state.lastIncome = totalIncome;
+
+            if (totalIncome > 0) {
+                state.cash += totalIncome;
+                logText += `<span class="log-income">決算報告: 今月の家賃回収 +${formatMoney(totalIncome)} (稼働率適用)</span><br>`;
+            } else {
+                logText += `所有物件なし。<br>`;
+            }
+            logText += `<span class="log-event">市況が変化し、不動産相場が変動しました。</span><hr style="border: 0; border-top: 1px dashed #334155; margin: 5px 0;">`;
+            
+            addLog(logText);
+            updateScreen();
+
+            overlay.classList.remove('active');
+            btnNext.disabled = false;
+            
+        }, 800); 
+    }
+
+    function buy(key) {
+        let p = properties[key];
+        if (state.cash >= p.currentPrice) {
+            state.cash -= p.currentPrice;
+            p.count++;
+            addLog(`🛒 「${p.name}」を ${formatMoney(p.currentPrice)} で購入しました。<br><hr style="border: 0; border-top: 1px dashed #334155; margin: 5px 0;">`);
+            updateScreen();
+        }
+    }
+
+    function sell(key) {
+        let p = properties[key];
+        if (p.count > 0) {
+            state.cash += p.currentPrice;
+            p.count--;
+            addLog(`💰 「${p.name}」を ${formatMoney(p.currentPrice)} で売却しました。<br><hr style="border: 0; border-top: 1px dashed #334155; margin: 5px 0;">`);
+            updateScreen();
+        }
+    }
+
+    function saveGame() {
+        localStorage.setItem('tycoon_state', JSON.stringify(state));
+        localStorage.setItem('tycoon_props', JSON.stringify(properties));
+        addLog(`<span style="color: #38bdf8;">💾 データをセーブしました。</span><br><hr style="border: 0; border-top: 1px dashed #334155; margin: 5px 0;">`);
+        
+        let toast = document.getElementById("save-toast");
+        toast.className = "show";
+        setTimeout(function(){ toast.className = toast.className.replace("show", ""); }, 2500);
+    }
+
+    function loadGame() {
+        let savedState = localStorage.getItem('tycoon_state');
+        let savedProps = localStorage.getItem('tycoon_props');
+        
+        if (savedState && savedProps) {
+            state = JSON.parse(savedState);
+            properties = JSON.parse(savedProps);
+            
+            // 互換性対策（古いセーブデータに年・月がない場合）
+            if (!state.currentYear) state.currentYear = 2026;
+            if (!state.currentMonth) state.currentMonth = 1;
+            if (state.lastIncome === undefined) state.lastIncome = 0;
+            
+            buildMarketUI();
+            switchScreen();
+            addLog(`<span style="color: #38bdf8;">💾 データをロードしました。続きから再開します。</span><br><hr style="border: 0; border-top: 1px dashed #334155; margin: 5px 0;">`);
+            updateScreen();
+        } else {
+            alert("セーブデータが見つかりません。");
+        }
+    }
+
+    function addLog(text) {
+        let logArea = document.getElementById('log-area');
+        logArea.innerHTML = text + logArea.innerHTML;
+    }
+
+    function updateScreen() {
+        state.netWorth = state.cash;
+        for (let key in properties) {
+            state.netWorth += properties[key].currentPrice * properties[key].count;
+        }
+
+        // 経過月数だけでなく、現在の年月も表示する
+        document.getElementById('display-date').innerText = `${state.currentYear}年${state.currentMonth}月 (経過:${state.month}ヶ月)`;
+        document.getElementById('display-income').innerText = "+" + formatMoney(state.lastIncome);
+        document.getElementById('display-cash').innerText = formatMoney(state.cash);
+        document.getElementById('display-networth').innerText = formatMoney(state.netWorth);
+
+        for (let key in properties) {
+            let p = properties[key];
+            
+            document.getElementById(`count-${key}`).innerText = `所有: ${p.count}`;
+            
+            let priceEl = document.getElementById(`price-${key}`);
+            let arrowEl = document.getElementById(`arrow-${key}`);
+            let yieldEl = document.getElementById(`yield-${key}`);
+            let buyBtn = document.getElementById(`btn-buy-${key}`);
+            let sellBtn = document.getElementById(`btn-sell-${key}`);
+            
+            priceEl.innerText = formatMoney(p.currentPrice);
+            if (p.currentPrice > p.basePrice) { 
+                priceEl.className = "price-up"; arrowEl.innerText = "▲"; arrowEl.className = "price-up";
+            } else if (p.currentPrice < p.basePrice) { 
+                priceEl.className = "price-down"; arrowEl.innerText = "▼"; arrowEl.className = "price-down";
+            } else { 
+                priceEl.className = ""; arrowEl.innerText = "▶"; arrowEl.className = "";
+            }
+
+            let yieldPct = ((p.rent * 12) / p.currentPrice * 100).toFixed(1);
+            yieldEl.innerText = `${yieldPct}%`;
+
+            buyBtn.disabled = (state.cash < p.currentPrice);
+            sellBtn.disabled = (p.count <= 0);
+        }
+    }
+</script>
+</body>
+</html>
