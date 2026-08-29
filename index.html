@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -306,14 +307,15 @@
 
         let html = '';
         categories.forEach((cat, index) => {
-            let openAttr = index === 0 ? 'open' : ''; 
-            html += `<details class="market-category" ${openAttr}>
+            // ★変更点：最初から開かれないように openAttr の処理を削除しました
+            html += `<details class="market-category">
                         <summary>${cat.name}</summary>
                         <div class="market-grid">`;
             
             for (let key in properties) {
                 let p = properties[key];
                 if (cat.filter(p)) {
+                    // ★変更点：家賃を動的に書き換えるため id="rent-${key}" を追加
                     html += `
                     <div class="market-board">
                         <div class="market-header">
@@ -324,7 +326,7 @@
                             相場: <span id="price-${key}"></span> <span id="arrow-${key}"></span>
                         </div>
                         <div class="rent-info">
-                            <strong>現在の家賃(満室時):</strong> <span style="color:#10b981; font-weight:bold;">+${formatMoney(Math.floor(p.currentRent))}/月</span><br>
+                            <strong>現在の家賃(満室時):</strong> <span id="rent-${key}" style="color:#10b981; font-weight:bold;">+${formatMoney(Math.floor(p.currentRent))}/月</span><br>
                             <span style="font-size:0.85em; color:#94a3b8;">※保有し続けると家賃は下落します（底値: ${formatMoney(p.minRent)}）</span><br>
                             <span class="expense-text"><strong>維持費(固定):</strong> -${formatMoney(p.maintenance)}/月</span><br>
                             <strong>実質利回り:</strong> <span id="yield-${key}"></span><br>
@@ -421,28 +423,25 @@
                 state.currentYear++;
             }
 
-            // --- 景気サイクルの進行管理 (およそ6〜7年周期) ---
+            // --- 景気サイクルの進行管理 ---
             let macroBias = 0;
             state.phaseMonths++;
 
             if (state.economyPhase === "normal") {
-                // 約6年(72ヶ月)経過後、毎月一定確率でバブル突入
                 if (state.phaseMonths > 72 && Math.random() < 0.08) {
                     state.economyPhase = "bubble";
                     state.phaseMonths = 0;
                     addLog(`<span style="color:#fbbf24; font-size:1.05em;">📈 【号外】好景気到来！市場に資金が流入し、不動産価格が上昇トレンドに入りました！</span><hr style="border: 0; border-top: 1px dashed #334155; margin: 5px 0;">`);
                 }
             } else if (state.economyPhase === "bubble") {
-                macroBias = (Math.random() * 0.4 + 0.4); // 毎月 +0.4% 〜 +0.8% の底上げ
-                // 1年〜1年半でバブル崩壊へ
+                macroBias = (Math.random() * 0.4 + 0.4); 
                 if (state.phaseMonths > 12 && Math.random() < 0.1) {
                     state.economyPhase = "crash";
                     state.phaseMonths = 0;
                     addLog(`<span style="color:#f43f5e; font-size:1.05em;">📉 【悲報】バブル崩壊！金利引き上げと金融不安により、不動産相場が急激な暴落に転じました！</span><hr style="border: 0; border-top: 1px dashed #334155; margin: 5px 0;">`);
                 }
             } else if (state.economyPhase === "crash") {
-                macroBias = -(Math.random() * 0.8 + 0.8); // 毎月 -0.8% 〜 -1.6% の急落
-                // 半年〜1年でパニックが落ち着き平常へ
+                macroBias = -(Math.random() * 0.8 + 0.8); 
                 if (state.phaseMonths > 8 && Math.random() < 0.15) {
                     state.economyPhase = "normal";
                     state.phaseMonths = 0;
@@ -465,7 +464,7 @@
                         p.currentRent = Math.max(p.minRent, p.currentRent * 0.999);
                     }
 
-                    // ② 突発的修繕 (1%の確率で発生、ダメージは0.5%)
+                    // ② 突発的修繕 (1%の確率で発生)
                     for (let i = 0; i < p.count; i++) {
                         if (Math.random() < 0.01) {
                             let cost = Math.floor(p.currentPrice * 0.005); 
@@ -486,7 +485,6 @@
                 p.previousPrice = p.currentPrice;
                 let pcMin = p.priceChange[0];
                 let pcMax = p.priceChange[1];
-                // 個別の変動幅に、現在の経済トレンド（macroBias）を加算
                 let changeRate = (Math.random() * (pcMax - pcMin) + pcMin) + macroBias;
                 p.currentPrice = Math.max(100, Math.round(p.currentPrice * (1 + changeRate / 100))); 
             }
@@ -515,7 +513,7 @@
             
             addLog(logText);
             
-            buildMarketUI();
+            // ★変更点：UI全体は再構築せず、updateScreen() だけで表示を更新します
             updateScreen();
 
             overlay.classList.remove('active');
@@ -541,7 +539,7 @@
             }
 
             addLog(`🛒 「${p.name}」を購入。<br><span style="font-size:0.85em; color:#94a3b8;">物件価格: ${formatMoney(p.currentPrice)} / 諸経費(3%): ${formatMoney(totalCost - p.currentPrice)}</span><br><hr style="border: 0; border-top: 1px dashed #334155; margin: 5px 0;">`);
-            buildMarketUI();
+            // ★変更点：ここでも buildMarketUI(); を削除
             updateScreen();
         } else {
             alert(`資金不足です。購入には物件価格＋3%の諸経費（合計 ${formatMoney(totalCost)}）が必要です。`);
@@ -556,7 +554,7 @@
             state.cash += totalGain;
             p.count--;
             addLog(`💰 「${p.name}」を売却。<br><span style="font-size:0.85em; color:#94a3b8;">物件価格: ${formatMoney(p.currentPrice)} / 手数料引後: ${formatMoney(totalGain)}</span><br><hr style="border: 0; border-top: 1px dashed #334155; margin: 5px 0;">`);
-            buildMarketUI();
+            // ★変更点：ここでも buildMarketUI(); を削除
             updateScreen();
         }
     }
@@ -656,8 +654,13 @@
             let yieldEl = document.getElementById(`yield-${key}`);
             let buyBtn = document.getElementById(`btn-buy-${key}`);
             let sellBtn = document.getElementById(`btn-sell-${key}`);
+            // ★変更点：家賃テキストの更新をここで実行
+            let rentEl = document.getElementById(`rent-${key}`);
             
             priceEl.innerText = formatMoney(p.currentPrice);
+            if (rentEl) {
+                rentEl.innerText = "+" + formatMoney(Math.floor(p.currentRent)) + "/月";
+            }
             
             let prevPrice = p.previousPrice || p.basePrice; 
             if (p.currentPrice > prevPrice) { 
