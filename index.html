@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>超本格・不動産王シミュレーション</title>
+    <title>超本格・不動産王シミュレーション (健全経営モード)</title>
     <style>
         /* モダンなダークテーマUI */
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #0f172a; color: #e2e8f0; padding: 15px; margin: 0; }
@@ -47,7 +47,7 @@
         .btn-save { flex: 1; min-width: 100px; padding: 15px; background: #334155; color: white; border: none; border-radius: 8px; font-size: 1.1em; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .btn-save:hover { background: #475569; }
 
-        /* 追加融資パネル */
+        /* 資金操作パネル */
         .fund-panel { display: flex; gap: 10px; margin-bottom: 25px; align-items: center; background: #0f172a; padding: 12px 15px; border-radius: 8px; border: 1px dashed #475569; flex-wrap: wrap; }
         .fund-panel label { color: #94a3b8; font-weight: bold; }
         .fund-panel-inputs { display: flex; flex: 1; min-width: 200px; align-items: center; gap: 5px; }
@@ -55,6 +55,8 @@
         .fund-panel span { color: #94a3b8; font-weight: bold; white-space: nowrap; }
         .btn-add-fund { padding: 12px 20px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; }
         .btn-add-fund:hover { background: #2563eb; }
+        .btn-withdraw-fund { padding: 12px 20px; background: #e11d48; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; }
+        .btn-withdraw-fund:hover { background: #be123c; }
 
         /* アコーディオンとマーケットエリア */
         .market-category { margin-bottom: 15px; background: #1e293b; border: 1px solid #334155; border-radius: 8px; overflow: hidden; }
@@ -75,6 +77,8 @@
         .price-up { color: #f43f5e; font-weight: bold; }
         .price-down { color: #3b82f6; font-weight: bold; }
         .rent-info { font-size: 0.85em; color: #cbd5e1; background: #0f172a; padding: 10px; border-radius: 6px; margin-bottom: 15px; line-height: 1.4; border: 1px solid #334155;}
+        
+        .expense-text { color: #f43f5e; font-weight: bold; }
 
         .action-btns { display: flex; gap: 8px; }
         .action-btns button { flex: 1; padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 0.95em; }
@@ -89,7 +93,9 @@
         .log { background: #0f172a; padding: 15px; font-size: 0.9em; height: 180px; overflow-y: scroll; border-radius: 8px; border: 1px solid #334155; color: #cbd5e1; line-height: 1.6; }
         .log-date { color: #38bdf8; font-weight: bold; }
         .log-income { color: #10b981; }
+        .log-expense { color: #f43f5e; }
         .log-event { color: #f59e0b; }
+        .log-repair { color: #f97316; font-weight: bold; }
 
         /* トースト通知 */
         #save-toast {
@@ -132,14 +138,13 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .loading-text { color: #f8fafc; font-size: 1.2em; font-weight: bold; text-align: center; line-height: 1.5; }
 
-        /* スマホ向けレイアウト最適化 */
         @media (max-width: 600px) {
             .input-row { flex-direction: column; align-items: stretch; gap: 5px; margin-bottom: 15px; }
             .input-row div { display: flex; justify-content: center; align-items: center; gap: 10px; }
             .fund-panel { flex-direction: column; align-items: stretch; gap: 10px; }
             .fund-panel label { text-align: center; margin-bottom: 5px; }
             .fund-panel-inputs { width: 100%; }
-            .btn-add-fund { width: 100%; }
+            .btn-add-fund, .btn-withdraw-fund { width: 100%; }
             .controls { flex-direction: column; }
             .btn-next, .btn-save { width: 100%; }
             .dash-item { min-width: 100%; }
@@ -148,16 +153,14 @@
 </head>
 <body>
 
-<!-- ローディング演出用HTML -->
 <div id="loading-overlay">
     <div class="spinner"></div>
-    <div class="loading-text">1ヶ月経過...<br>収益と相場を計算中</div>
+    <div class="loading-text">1ヶ月経過...<br>収益・経年劣化・修繕費を計算中</div>
 </div>
 
 <div class="container">
-    <h1>🏢 Real Estate Tycoon</h1>
+    <h1>🏢 Real Estate Tycoon (健全経営モード)</h1>
 
-    <!-- 初期設定画面 -->
     <div id="setup-screen">
         <h2>資産運用シミュレーションへようこそ</h2>
         <p style="color: #94a3b8; font-size: 0.9em;">開始時期と初期の自己資金を入力して新しいゲームを始めるか、<br>前回の続きから再開してください。</p>
@@ -183,7 +186,6 @@
         <button class="btn-start btn-load" id="btn-load-title" onclick="loadGame()" style="display: none;">💾 続きから再開</button>
     </div>
 
-    <!-- ゲーム画面 -->
     <div id="game-screen">
         <div class="dashboard">
             <div class="dash-item" style="min-width: 100%; border-right: none; border-bottom: 1px dashed #334155; padding-bottom: 10px;">
@@ -191,7 +193,7 @@
                 <div class="dash-value" style="color: #38bdf8;" id="display-date">2026年8月 (1ヶ月目)</div>
             </div>
             <div class="dash-item">
-                <div class="dash-label">直近の家賃収入</div>
+                <div class="dash-label">直近の月間収支（純利益）</div>
                 <div class="dash-value income-color" id="display-income">+0万円</div>
             </div>
             <div class="dash-item">
@@ -205,18 +207,18 @@
         </div>
 
         <div class="controls">
-            <button class="btn-next" id="btn-next-month" onclick="nextMonth()">▶ 1ヶ月進める（家賃＆相場変動）</button>
+            <button class="btn-next" id="btn-next-month" onclick="nextMonth()">▶ 1ヶ月進める（家賃・維持費・経年劣化）</button>
             <button class="btn-save" onclick="saveGame()">💾 セーブ</button>
         </div>
 
-        <!-- 資金追加パネル -->
         <div class="fund-panel">
-            <label for="add-funds-amount">🏦 追加融資 / 増資</label>
+            <label for="add-funds-amount">🏦 資金操作</label>
             <div class="fund-panel-inputs">
                 <input type="number" id="add-funds-amount" placeholder="金額を入力" min="1">
                 <span>万円</span>
             </div>
-            <button class="btn-add-fund" onclick="addFunds()">💰 資金を追加</button>
+            <button class="btn-add-fund" onclick="addFunds()">💰 追加</button>
+            <button class="btn-withdraw-fund" onclick="withdrawFunds()">💸 引き出し</button>
         </div>
 
         <h2 style="border-bottom: 1px solid #334155; padding-bottom: 10px; font-size: 1.2em;">📊 物件マーケット</h2>
@@ -231,53 +233,55 @@
     </div>
 </div>
 
-<!-- セーブ完了通知用のトースト -->
 <div id="save-toast">💾 セーブ完了！</div>
 
 <script>
-    // --- データ構造 ---
+    let isProcessing = false;
+
     let state = { 
-        month: 1, 
-        cash: 0, 
-        netWorth: 0, 
-        lastIncome: 0,
-        currentYear: 2026,
-        currentMonth: 8
+        month: 1, cash: 0, netWorth: 0, lastIncome: 0, currentYear: 2026, currentMonth: 8
     };
     
+    // 物件データ（維持費、家賃底値を設定）
     const baseProperties = {
-        prop1: { name: "地方の青空駐車場", basePrice: 500, currentPrice: 500, rent: 4, count: 0 },
-        prop2: { name: "地方の築古戸建て", basePrice: 800, currentPrice: 800, rent: 8, count: 0 },
-        prop3: { name: "都心の中古ワンルーム", basePrice: 2500, currentPrice: 2500, rent: 10, count: 0 },
-        prop4: { name: "都心のコインパーキング", basePrice: 5000, currentPrice: 5000, rent: 20, count: 0 },
-        prop5: { name: "郊外の木造アパート一棟", basePrice: 8000, currentPrice: 8000, rent: 60, count: 0 },
-        prop6: { name: "都心の高級タワマン一室", basePrice: 15000, currentPrice: 15000, rent: 50, count: 0 },
-        prop7: { name: "地方の一棟RCマンション", basePrice: 30000, currentPrice: 30000, rent: 250, count: 0 },
-        prop8: { name: "ロードサイド大型商業店舗", basePrice: 50000, currentPrice: 50000, rent: 350, count: 0 },
-        prop9: { name: "メガソーラー発電所", basePrice: 100000, currentPrice: 100000, rent: 800, count: 0 },
-        prop10: { name: "都心の中規模オフィスビル", basePrice: 300000, currentPrice: 300000, rent: 1200, count: 0 },
-        prop11: { name: "地方のショッピングモール", basePrice: 800000, currentPrice: 800000, rent: 4000, count: 0 },
-        prop12: { name: "大型物流倉庫センター", basePrice: 1500000, currentPrice: 1500000, rent: 6000, count: 0 },
-        prop13: { name: "都心一等地の超高層ビル", basePrice: 8000000, currentPrice: 8000000, rent: 25000, count: 0 },
-        prop14: { name: "巨大テーマパーク", basePrice: 30000000, currentPrice: 30000000, rent: 120000, count: 0 },
-        prop15: { name: "国際空港の運営権", basePrice: 80000000, currentPrice: 80000000, rent: 350000, count: 0 },
-        prop16: { name: "スマートシティ全体開発", basePrice: 200000000, currentPrice: 200000000, rent: 800000, count: 0 }
+        prop1: { name: "地方の青空駐車場", basePrice: 500, currentPrice: 500, baseRent: 4, currentRent: 4, minRent: 2, maintenance: 1, count: 0, priceChange: [-4, 2], occupancy: [40, 100] },
+        prop2: { name: "地方の築古戸建て", basePrice: 800, currentPrice: 800, baseRent: 8, currentRent: 8, minRent: 4, maintenance: 2, count: 0, priceChange: [-5, 1], occupancy: [30, 90] },
+        prop3: { name: "都心の中古ワンルーム", basePrice: 2500, currentPrice: 2500, baseRent: 10, currentRent: 10, minRent: 5, maintenance: 3, count: 0, priceChange: [-2, 3], occupancy: [85, 100] },
+        prop4: { name: "都心のコインパーキング", basePrice: 5000, currentPrice: 5000, baseRent: 20, currentRent: 20, minRent: 10, maintenance: 4, count: 0, priceChange: [-2, 2], occupancy: [70, 100] },
+        prop5: { name: "郊外の木造アパート一棟", basePrice: 8000, currentPrice: 8000, baseRent: 60, currentRent: 60, minRent: 30, maintenance: 15, count: 0, priceChange: [-4, 2], occupancy: [50, 95] },
+        prop6: { name: "都心の高級タワマン一室", basePrice: 15000, currentPrice: 15000, baseRent: 50, currentRent: 50, minRent: 25, maintenance: 15, count: 0, priceChange: [-1, 5], occupancy: [95, 100] },
+        prop7: { name: "地方の一棟RCマンション", basePrice: 30000, currentPrice: 30000, baseRent: 250, currentRent: 250, minRent: 125, maintenance: 60, count: 0, priceChange: [-4, 2], occupancy: [50, 95] },
+        prop8: { name: "ロードサイド大型商業店舗", basePrice: 50000, currentPrice: 50000, baseRent: 350, currentRent: 350, minRent: 175, maintenance: 80, count: 0, priceChange: [-3, 3], occupancy: [70, 100] },
+        prop9: { name: "メガソーラー発電所", basePrice: 100000, currentPrice: 100000, baseRent: 800, currentRent: 800, minRent: 400, maintenance: 150, count: 0, priceChange: [-4, 1], occupancy: [80, 100] },
+        prop10: { name: "都心の中規模オフィスビル", basePrice: 300000, currentPrice: 300000, baseRent: 1200, currentRent: 1200, minRent: 600, maintenance: 300, count: 0, priceChange: [-2, 4], occupancy: [80, 100] },
+        prop11: { name: "地方のショッピングモール", basePrice: 800000, currentPrice: 800000, baseRent: 4000, currentRent: 4000, minRent: 2000, maintenance: 1000, count: 0, priceChange: [-5, 2], occupancy: [50, 95] },
+        prop12: { name: "大型物流倉庫センター", basePrice: 1500000, currentPrice: 1500000, baseRent: 6000, currentRent: 6000, minRent: 3000, maintenance: 1200, count: 0, priceChange: [-1, 3], occupancy: [90, 100] },
+        prop13: { name: "都心一等地の超高層ビル", basePrice: 8000000, currentPrice: 8000000, baseRent: 25000, currentRent: 25000, minRent: 12500, maintenance: 6000, count: 0, priceChange: [0, 5], occupancy: [90, 100] },
+        prop14: { name: "巨大テーマパーク", basePrice: 30000000, currentPrice: 30000000, baseRent: 120000, currentRent: 120000, minRent: 60000, maintenance: 35000, count: 0, priceChange: [-3, 6], occupancy: [30, 100] },
+        prop15: { name: "国際空港の運営権", basePrice: 80000000, currentPrice: 80000000, baseRent: 350000, currentRent: 350000, minRent: 175000, maintenance: 100000, count: 0, priceChange: [-2, 4], occupancy: [60, 100] },
+        prop16: { name: "スマートシティ全体開発", basePrice: 200000000, currentPrice: 200000000, baseRent: 800000, currentRent: 800000, minRent: 400000, maintenance: 250000, count: 0, priceChange: [-1, 6], occupancy: [80, 100] }
     };
     
     let properties = JSON.parse(JSON.stringify(baseProperties));
 
     function formatMoney(amountInMan) {
-        if (amountInMan >= 100000000) { 
-            let cho = Math.floor(amountInMan / 100000000);
-            let oku = Math.floor((amountInMan % 100000000) / 10000);
-            return oku > 0 ? `${cho}兆${oku}億円` : `${cho}兆円`;
-        } else if (amountInMan >= 10000) { 
-            let oku = Math.floor(amountInMan / 10000);
-            let man = amountInMan % 10000;
-            return man > 0 ? `${oku}億${man.toLocaleString()}万円` : `${oku}億円`;
+        let isNegative = amountInMan < 0;
+        let absAmount = Math.abs(amountInMan);
+        let formattedString = "";
+
+        if (absAmount >= 100000000) { 
+            let cho = Math.floor(absAmount / 100000000);
+            let oku = Math.floor((absAmount % 100000000) / 10000);
+            formattedString = oku > 0 ? `${cho}兆${oku}億円` : `${cho}兆円`;
+        } else if (absAmount >= 10000) { 
+            let oku = Math.floor(absAmount / 10000);
+            let man = absAmount % 10000;
+            formattedString = man > 0 ? `${oku}億${man.toLocaleString()}万円` : `${oku}億円`;
         } else {
-            return `${amountInMan.toLocaleString()}万円`;
+            formattedString = `${absAmount.toLocaleString()}万円`;
         }
+
+        return isNegative ? "-" + formattedString : formattedString;
     }
 
     window.onload = function() {
@@ -314,9 +318,13 @@
                             相場: <span id="price-${key}"></span> <span id="arrow-${key}"></span>
                         </div>
                         <div class="rent-info">
-                            <strong>満室時想定:</strong> ${formatMoney(p.rent)}/月<br>
-                            <strong>表面利回り:</strong> <span id="yield-${key}"></span><br>
-                            <span style="font-size: 0.9em; color: #64748b;">(初期価格: ${formatMoney(p.basePrice)})</span>
+                            <strong>現在の家賃(満室時):</strong> <span style="color:#10b981; font-weight:bold;">+${formatMoney(Math.floor(p.currentRent))}/月</span><br>
+                            <span style="font-size:0.85em; color:#94a3b8;">※保有し続けると家賃は下落します（底値: ${formatMoney(p.minRent)}）</span><br>
+                            <span class="expense-text"><strong>維持費(固定):</strong> -${formatMoney(p.maintenance)}/月</span><br>
+                            <strong>実質利回り:</strong> <span id="yield-${key}"></span><br>
+                            <span style="color: #fbbf24;"><strong>稼働率変動:</strong> ${p.occupancy[0]}% 〜 ${p.occupancy[1]}%</span><br>
+                            <span style="color: #fbbf24;"><strong>価格変動幅:</strong> ${p.priceChange[0] > 0 ? '+'+p.priceChange[0] : p.priceChange[0]}% 〜 ${p.priceChange[1] > 0 ? '+'+p.priceChange[1] : p.priceChange[1]}% /月</span><br>
+                            <span style="font-size: 0.9em; color: #64748b;">(諸経費: 買3% / 売3%)</span>
                         </div>
                         <div class="action-btns">
                             <button class="btn-buy" id="btn-buy-${key}" onclick="buy('${key}')">購入</button>
@@ -343,12 +351,7 @@
         }
         
         state = { 
-            month: 1, 
-            cash: initMoney, 
-            netWorth: initMoney, 
-            lastIncome: 0,
-            currentYear: initYear,
-            currentMonth: initMonth
+            month: 1, cash: initMoney, netWorth: initMoney, lastIncome: 0, currentYear: initYear, currentMonth: initMonth
         };
         properties = JSON.parse(JSON.stringify(baseProperties)); 
         
@@ -356,7 +359,6 @@
         switchScreen();
         updateScreen();
         
-        // ログのリセット
         document.getElementById('log-area').innerHTML = `<span class="log-date">【${state.currentYear}年${state.currentMonth}月】</span><br>ゲームを開始しました。<br>`;
     }
 
@@ -366,93 +368,161 @@
     }
 
     function addFunds() {
+        if (isProcessing) return; 
         let inputEl = document.getElementById('add-funds-amount');
         let amount = parseInt(inputEl.value, 10);
-        
-        if (isNaN(amount) || amount <= 0) {
-            alert("正しい金額を入力してください");
-            return;
-        }
+        if (isNaN(amount) || amount <= 0) { alert("正しい金額を入力してください"); return; }
         
         state.cash += amount;
         inputEl.value = ''; 
-        
-        addLog(`<span style="color: #38bdf8;">🏦 【増資】 ${formatMoney(amount)} を手元資金に追加しました。</span><br><hr style="border: 0; border-top: 1px dashed #334155; margin: 5px 0;">`);
+        addLog(`<span style="color: #38bdf8;">🏦 【資金追加】 ${formatMoney(amount)} を手元資金に追加しました。</span><br><hr style="border: 0; border-top: 1px dashed #334155; margin: 5px 0;">`);
         updateScreen();
     }
 
+    function withdrawFunds() {
+        if (isProcessing) return; 
+        let inputEl = document.getElementById('add-funds-amount');
+        let amount = parseInt(inputEl.value, 10);
+        if (isNaN(amount) || amount <= 0) { alert("正しい金額を入力してください"); return; }
+
+        state.cash -= amount; 
+        inputEl.value = ''; 
+        addLog(`<span style="color: #f43f5e;">💸 【資金引出】 ${formatMoney(amount)} を手元資金から引き出しました。</span><br><hr style="border: 0; border-top: 1px dashed #334155; margin: 5px 0;">`);
+        updateScreen();
+    }
+
+    // 月次処理（健全経営モード：現実的な劣化・修繕確率）
     function nextMonth() {
+        if (isProcessing) return; 
         const btnNext = document.getElementById('btn-next-month');
         const overlay = document.getElementById('loading-overlay');
         
+        isProcessing = true;
         btnNext.disabled = true;
         overlay.classList.add('active');
 
         setTimeout(() => {
             state.month++;
-            // 年月の進行処理
             state.currentMonth++;
             if (state.currentMonth > 12) {
                 state.currentMonth = 1;
                 state.currentYear++;
             }
 
-            let totalIncome = 0;
+            let totalRent = 0;
+            let totalMaintenance = 0;
+            let totalRepair = 0;
+            let repairLogs = [];
             let logText = `<span class="log-date">【${state.currentYear}年${state.currentMonth}月】</span><br>`;
 
             for (let key in properties) {
                 let p = properties[key];
                 
                 if (p.count > 0) {
-                    let occupancyRate = (Math.random() * 30 + 70) / 100; 
-                    let actualRent = Math.floor(p.rent * p.count * occupancyRate);
-                    totalIncome += actualRent;
+                    // ① 経年劣化 (毎月0.1%家賃が下落、現実的な約10年で11%下落ペース)
+                    if (p.currentRent > p.minRent) {
+                        p.currentRent = Math.max(p.minRent, p.currentRent * 0.999);
+                    }
+
+                    // ② 突発的修繕 (所有物件1件ごとに1%の確率で発生、ダメージは0.5%)
+                    for (let i = 0; i < p.count; i++) {
+                        if (Math.random() < 0.01) {
+                            let cost = Math.floor(p.currentPrice * 0.005); 
+                            if (cost < 1) cost = 1;
+                            totalRepair += cost;
+                            repairLogs.push(`⚠️ 【修繕発生】「${p.name}」で設備トラブル！ 修繕費: -${formatMoney(cost)}`);
+                        }
+                    }
+
+                    // ③ 家賃と維持費の計算
+                    let occMin = p.occupancy[0];
+                    let occMax = p.occupancy[1];
+                    let occupancyRate = (Math.random() * (occMax - occMin) + occMin) / 100; 
+                    totalRent += Math.floor(p.currentRent * p.count * occupancyRate);
+                    totalMaintenance += p.maintenance * p.count;
                 }
 
-                let changeRate = (Math.random() * 10 - 5) / 100;
+                p.previousPrice = p.currentPrice;
+                let pcMin = p.priceChange[0];
+                let pcMax = p.priceChange[1];
+                let changeRate = (Math.random() * (pcMax - pcMin) + pcMin) / 100;
                 p.currentPrice = Math.max(100, Math.floor(p.currentPrice * (1 + changeRate))); 
             }
 
-            state.lastIncome = totalIncome;
+            // 純利益 = 家賃 - 維持費 - 修繕費
+            let netIncome = totalRent - totalMaintenance - totalRepair;
+            state.lastIncome = netIncome;
+            state.cash += netIncome; 
 
-            if (totalIncome > 0) {
-                state.cash += totalIncome;
-                logText += `<span class="log-income">決算報告: 今月の家賃回収 +${formatMoney(totalIncome)} (稼働率適用)</span><br>`;
+            if (totalRent > 0 || totalMaintenance > 0 || totalRepair > 0) {
+                let incomeClass = netIncome >= 0 ? "log-income" : "log-expense"; 
+                let sign = netIncome > 0 ? "+" : "";
+                
+                logText += `<span class="${incomeClass}">決算報告: 家賃収入 +${formatMoney(totalRent)} / 維持費 -${formatMoney(totalMaintenance)}`;
+                if (totalRepair > 0) {
+                    logText += ` / 突発修繕 -${formatMoney(totalRepair)}`;
+                }
+                logText += `<br>▶ 月間収支(純利益): ${sign}${formatMoney(netIncome)}</span><br>`;
+                
+                // 修繕ログを追記
+                if (repairLogs.length > 0) {
+                    logText += `<span class="log-repair">${repairLogs.join('<br>')}</span><br>`;
+                }
             } else {
                 logText += `所有物件なし。<br>`;
             }
             logText += `<span class="log-event">市況が変化し、不動産相場が変動しました。</span><hr style="border: 0; border-top: 1px dashed #334155; margin: 5px 0;">`;
             
             addLog(logText);
+            
+            buildMarketUI();
             updateScreen();
 
             overlay.classList.remove('active');
             btnNext.disabled = false;
+            isProcessing = false; 
             
         }, 800); 
     }
 
     function buy(key) {
+        if (isProcessing) return; 
         let p = properties[key];
-        if (state.cash >= p.currentPrice) {
-            state.cash -= p.currentPrice;
+        let totalCost = Math.floor(p.currentPrice * 1.03); // 手数料は現実的な3%
+
+        if (state.cash >= totalCost) {
+            state.cash -= totalCost;
             p.count++;
-            addLog(`🛒 「${p.name}」を ${formatMoney(p.currentPrice)} で購入しました。<br><hr style="border: 0; border-top: 1px dashed #334155; margin: 5px 0;">`);
+            
+            if (p.count === 1) {
+                p.currentRent = p.baseRent;
+            } else {
+                p.currentRent = ((p.currentRent * (p.count - 1)) + p.baseRent) / p.count;
+            }
+
+            addLog(`🛒 「${p.name}」を購入。<br><span style="font-size:0.85em; color:#94a3b8;">物件価格: ${formatMoney(p.currentPrice)} / 諸経費(3%): ${formatMoney(totalCost - p.currentPrice)}</span><br><hr style="border: 0; border-top: 1px dashed #334155; margin: 5px 0;">`);
+            buildMarketUI();
             updateScreen();
+        } else {
+            alert(`資金不足です。購入には物件価格＋3%の諸経費（合計 ${formatMoney(totalCost)}）が必要です。`);
         }
     }
 
     function sell(key) {
+        if (isProcessing) return; 
         let p = properties[key];
         if (p.count > 0) {
-            state.cash += p.currentPrice;
+            let totalGain = Math.floor(p.currentPrice * 0.97); // 手数料は現実的な3%
+            state.cash += totalGain;
             p.count--;
-            addLog(`💰 「${p.name}」を ${formatMoney(p.currentPrice)} で売却しました。<br><hr style="border: 0; border-top: 1px dashed #334155; margin: 5px 0;">`);
+            addLog(`💰 「${p.name}」を売却。<br><span style="font-size:0.85em; color:#94a3b8;">物件価格: ${formatMoney(p.currentPrice)} / 手数料引後: ${formatMoney(totalGain)}</span><br><hr style="border: 0; border-top: 1px dashed #334155; margin: 5px 0;">`);
+            buildMarketUI();
             updateScreen();
         }
     }
 
     function saveGame() {
+        if (isProcessing) return; 
         localStorage.setItem('tycoon_state', JSON.stringify(state));
         localStorage.setItem('tycoon_props', JSON.stringify(properties));
         addLog(`<span style="color: #38bdf8;">💾 データをセーブしました。</span><br><hr style="border: 0; border-top: 1px dashed #334155; margin: 5px 0;">`);
@@ -463,6 +533,7 @@
     }
 
     function loadGame() {
+        if (isProcessing) return; 
         let savedState = localStorage.getItem('tycoon_state');
         let savedProps = localStorage.getItem('tycoon_props');
         
@@ -470,10 +541,22 @@
             state = JSON.parse(savedState);
             properties = JSON.parse(savedProps);
             
-            // 互換性対策（古いセーブデータに年・月がない場合）
             if (!state.currentYear) state.currentYear = 2026;
             if (!state.currentMonth) state.currentMonth = 1;
             if (state.lastIncome === undefined) state.lastIncome = 0;
+            
+            for (let key in baseProperties) {
+                if (properties[key]) {
+                    if (properties[key].rent !== undefined && properties[key].baseRent === undefined) {
+                        properties[key].baseRent = baseProperties[key].baseRent;
+                        properties[key].currentRent = properties[key].rent; 
+                        properties[key].minRent = baseProperties[key].minRent;
+                    }
+                    if (!properties[key].priceChange) properties[key].priceChange = baseProperties[key].priceChange;
+                    if (!properties[key].occupancy) properties[key].occupancy = baseProperties[key].occupancy;
+                    if (!properties[key].maintenance) properties[key].maintenance = baseProperties[key].maintenance;
+                }
+            }
             
             buildMarketUI();
             switchScreen();
@@ -487,6 +570,11 @@
     function addLog(text) {
         let logArea = document.getElementById('log-area');
         logArea.innerHTML = text + logArea.innerHTML;
+        
+        let logs = logArea.innerHTML.split(/<hr[^>]*>/i);
+        if (logs.length > 50) {
+            logArea.innerHTML = logs.slice(0, 50).join('<hr style="border: 0; border-top: 1px dashed #334155; margin: 5px 0;">');
+        }
     }
 
     function updateScreen() {
@@ -495,36 +583,48 @@
             state.netWorth += properties[key].currentPrice * properties[key].count;
         }
 
-        // 経過月数だけでなく、現在の年月も表示する
         document.getElementById('display-date').innerText = `${state.currentYear}年${state.currentMonth}月 (経過:${state.month}ヶ月)`;
-        document.getElementById('display-income').innerText = "+" + formatMoney(state.lastIncome);
-        document.getElementById('display-cash').innerText = formatMoney(state.cash);
+        
+        let incomeEl = document.getElementById('display-income');
+        let incomeSign = state.lastIncome > 0 ? "+" : "";
+        incomeEl.innerText = incomeSign + formatMoney(state.lastIncome);
+        incomeEl.style.color = state.lastIncome >= 0 ? "#10b981" : "#f43f5e";
+
+        let cashEl = document.getElementById('display-cash');
+        cashEl.innerText = formatMoney(state.cash);
+        cashEl.style.color = state.cash >= 0 ? "#f8fafc" : "#f43f5e";
+        
         document.getElementById('display-networth').innerText = formatMoney(state.netWorth);
 
         for (let key in properties) {
             let p = properties[key];
+            let priceEl = document.getElementById(`price-${key}`);
             
+            if(!priceEl) continue;
+
             document.getElementById(`count-${key}`).innerText = `所有: ${p.count}`;
             
-            let priceEl = document.getElementById(`price-${key}`);
             let arrowEl = document.getElementById(`arrow-${key}`);
             let yieldEl = document.getElementById(`yield-${key}`);
             let buyBtn = document.getElementById(`btn-buy-${key}`);
             let sellBtn = document.getElementById(`btn-sell-${key}`);
             
             priceEl.innerText = formatMoney(p.currentPrice);
-            if (p.currentPrice > p.basePrice) { 
+            
+            let prevPrice = p.previousPrice || p.basePrice; 
+            if (p.currentPrice > prevPrice) { 
                 priceEl.className = "price-up"; arrowEl.innerText = "▲"; arrowEl.className = "price-up";
-            } else if (p.currentPrice < p.basePrice) { 
+            } else if (p.currentPrice < prevPrice) { 
                 priceEl.className = "price-down"; arrowEl.innerText = "▼"; arrowEl.className = "price-down";
             } else { 
                 priceEl.className = ""; arrowEl.innerText = "▶"; arrowEl.className = "";
             }
 
-            let yieldPct = ((p.rent * 12) / p.currentPrice * 100).toFixed(1);
-            yieldEl.innerText = `${yieldPct}%`;
+            let realYieldPct = (((p.currentRent - p.maintenance) * 12) / p.currentPrice * 100).toFixed(1);
+            yieldEl.innerText = `${realYieldPct}% (満室時)`;
 
-            buyBtn.disabled = (state.cash < p.currentPrice);
+            // 買値は3%上乗せで判定
+            buyBtn.disabled = (state.cash < Math.floor(p.currentPrice * 1.03));
             sellBtn.disabled = (p.count <= 0);
         }
     }
