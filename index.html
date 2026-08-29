@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>超本格・不動産王シミュレーション (健全経営モード)</title>
+    <title>超本格・不動産王シミュレーション (景気サイクル対応版)</title>
     <style>
         /* モダンなダークテーマUI */
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #0f172a; color: #e2e8f0; padding: 15px; margin: 0; }
@@ -155,11 +155,11 @@
 
 <div id="loading-overlay">
     <div class="spinner"></div>
-    <div class="loading-text">1ヶ月経過...<br>収益・経年劣化・修繕費を計算中</div>
+    <div class="loading-text">1ヶ月経過...<br>収益・経年劣化・経済動向を計算中</div>
 </div>
 
 <div class="container">
-    <h1>🏢 Real Estate Tycoon (健全経営モード)</h1>
+    <h1>🏢 Real Estate Tycoon (景気サイクル対応版)</h1>
 
     <div id="setup-screen">
         <h2>資産運用シミュレーションへようこそ</h2>
@@ -189,8 +189,8 @@
     <div id="game-screen">
         <div class="dashboard">
             <div class="dash-item" style="min-width: 100%; border-right: none; border-bottom: 1px dashed #334155; padding-bottom: 10px;">
-                <div class="dash-label">現在の日付 / 経過</div>
-                <div class="dash-value" style="color: #38bdf8;" id="display-date">2026年8月 (1ヶ月目)</div>
+                <div class="dash-label">現在の日付 / 市況</div>
+                <div class="dash-value" style="color: #38bdf8;" id="display-date">2026年8月 (経過:1ヶ月)<br><span style="font-size:0.85em; color:#94a3b8; margin-top:3px; display:inline-block;">市況: 平常 (安定相場)</span></div>
             </div>
             <div class="dash-item">
                 <div class="dash-label">直近の月間収支（純利益）</div>
@@ -207,7 +207,7 @@
         </div>
 
         <div class="controls">
-            <button class="btn-next" id="btn-next-month" onclick="nextMonth()">▶ 1ヶ月進める（家賃・維持費・経年劣化）</button>
+            <button class="btn-next" id="btn-next-month" onclick="nextMonth()">▶ 1ヶ月進める（家賃・維持費・景気変動）</button>
             <button class="btn-save" onclick="saveGame()">💾 セーブ</button>
         </div>
 
@@ -239,27 +239,33 @@
     let isProcessing = false;
 
     let state = { 
-        month: 1, cash: 0, netWorth: 0, lastIncome: 0, currentYear: 2026, currentMonth: 8
+        month: 1, 
+        cash: 0, 
+        netWorth: 0, 
+        lastIncome: 0, 
+        currentYear: 2026, 
+        currentMonth: 8,
+        economyPhase: "normal", // "normal", "bubble", "crash"
+        phaseMonths: 0          // 経済フェーズの経過月数
     };
     
-    // 物件データ（維持費、家賃底値を設定）
     const baseProperties = {
-        prop1: { name: "地方の青空駐車場", basePrice: 500, currentPrice: 500, baseRent: 4, currentRent: 4, minRent: 2, maintenance: 1, count: 0, priceChange: [-4, 2], occupancy: [40, 100] },
-        prop2: { name: "地方の築古戸建て", basePrice: 800, currentPrice: 800, baseRent: 8, currentRent: 8, minRent: 4, maintenance: 2, count: 0, priceChange: [-5, 1], occupancy: [30, 90] },
-        prop3: { name: "都心の中古ワンルーム", basePrice: 2500, currentPrice: 2500, baseRent: 10, currentRent: 10, minRent: 5, maintenance: 3, count: 0, priceChange: [-2, 3], occupancy: [85, 100] },
-        prop4: { name: "都心のコインパーキング", basePrice: 5000, currentPrice: 5000, baseRent: 20, currentRent: 20, minRent: 10, maintenance: 4, count: 0, priceChange: [-2, 2], occupancy: [70, 100] },
-        prop5: { name: "郊外の木造アパート一棟", basePrice: 8000, currentPrice: 8000, baseRent: 60, currentRent: 60, minRent: 30, maintenance: 15, count: 0, priceChange: [-4, 2], occupancy: [50, 95] },
-        prop6: { name: "都心の高級タワマン一室", basePrice: 15000, currentPrice: 15000, baseRent: 50, currentRent: 50, minRent: 25, maintenance: 15, count: 0, priceChange: [-1, 5], occupancy: [95, 100] },
-        prop7: { name: "地方の一棟RCマンション", basePrice: 30000, currentPrice: 30000, baseRent: 250, currentRent: 250, minRent: 125, maintenance: 60, count: 0, priceChange: [-4, 2], occupancy: [50, 95] },
-        prop8: { name: "ロードサイド大型商業店舗", basePrice: 50000, currentPrice: 50000, baseRent: 350, currentRent: 350, minRent: 175, maintenance: 80, count: 0, priceChange: [-3, 3], occupancy: [70, 100] },
-        prop9: { name: "メガソーラー発電所", basePrice: 100000, currentPrice: 100000, baseRent: 800, currentRent: 800, minRent: 400, maintenance: 150, count: 0, priceChange: [-4, 1], occupancy: [80, 100] },
-        prop10: { name: "都心の中規模オフィスビル", basePrice: 300000, currentPrice: 300000, baseRent: 1200, currentRent: 1200, minRent: 600, maintenance: 300, count: 0, priceChange: [-2, 4], occupancy: [80, 100] },
-        prop11: { name: "地方のショッピングモール", basePrice: 800000, currentPrice: 800000, baseRent: 4000, currentRent: 4000, minRent: 2000, maintenance: 1000, count: 0, priceChange: [-5, 2], occupancy: [50, 95] },
-        prop12: { name: "大型物流倉庫センター", basePrice: 1500000, currentPrice: 1500000, baseRent: 6000, currentRent: 6000, minRent: 3000, maintenance: 1200, count: 0, priceChange: [-1, 3], occupancy: [90, 100] },
-        prop13: { name: "都心一等地の超高層ビル", basePrice: 8000000, currentPrice: 8000000, baseRent: 25000, currentRent: 25000, minRent: 12500, maintenance: 6000, count: 0, priceChange: [0, 5], occupancy: [90, 100] },
-        prop14: { name: "巨大テーマパーク", basePrice: 30000000, currentPrice: 30000000, baseRent: 120000, currentRent: 120000, minRent: 60000, maintenance: 35000, count: 0, priceChange: [-3, 6], occupancy: [30, 100] },
-        prop15: { name: "国際空港の運営権", basePrice: 80000000, currentPrice: 80000000, baseRent: 350000, currentRent: 350000, minRent: 175000, maintenance: 100000, count: 0, priceChange: [-2, 4], occupancy: [60, 100] },
-        prop16: { name: "スマートシティ全体開発", basePrice: 200000000, currentPrice: 200000000, baseRent: 800000, currentRent: 800000, minRent: 400000, maintenance: 250000, count: 0, priceChange: [-1, 6], occupancy: [80, 100] }
+        prop1: { name: "地方の青空駐車場", basePrice: 500, currentPrice: 500, baseRent: 4, currentRent: 4, minRent: 2, maintenance: 1, count: 0, priceChange: [-1.0, 0.5], occupancy: [40, 100] },
+        prop2: { name: "地方の築古戸建て", basePrice: 800, currentPrice: 800, baseRent: 8, currentRent: 8, minRent: 4, maintenance: 2, count: 0, priceChange: [-1.2, 0.6], occupancy: [30, 90] },
+        prop3: { name: "都心の中古ワンルーム", basePrice: 2500, currentPrice: 2500, baseRent: 10, currentRent: 10, minRent: 5, maintenance: 3, count: 0, priceChange: [-0.6, 0.8], occupancy: [85, 100] },
+        prop4: { name: "都心のコインパーキング", basePrice: 5000, currentPrice: 5000, baseRent: 20, currentRent: 20, minRent: 10, maintenance: 4, count: 0, priceChange: [-0.8, 0.8], occupancy: [70, 100] },
+        prop5: { name: "郊外の木造アパート一棟", basePrice: 8000, currentPrice: 8000, baseRent: 60, currentRent: 60, minRent: 30, maintenance: 15, count: 0, priceChange: [-0.8, 0.5], occupancy: [50, 95] },
+        prop6: { name: "都心の高級タワマン一室", basePrice: 15000, currentPrice: 15000, baseRent: 50, currentRent: 50, minRent: 25, maintenance: 15, count: 0, priceChange: [-0.5, 1.2], occupancy: [95, 100] },
+        prop7: { name: "地方の一棟RCマンション", basePrice: 30000, currentPrice: 30000, baseRent: 250, currentRent: 250, minRent: 125, maintenance: 60, count: 0, priceChange: [-1.0, 0.6], occupancy: [50, 95] },
+        prop8: { name: "ロードサイド大型商業店舗", basePrice: 50000, currentPrice: 50000, baseRent: 350, currentRent: 350, minRent: 175, maintenance: 80, count: 0, priceChange: [-0.8, 0.8], occupancy: [70, 100] },
+        prop9: { name: "メガソーラー発電所", basePrice: 100000, currentPrice: 100000, baseRent: 800, currentRent: 800, minRent: 400, maintenance: 150, count: 0, priceChange: [-1.0, 0.3], occupancy: [80, 100] },
+        prop10: { name: "都心の中規模オフィスビル", basePrice: 300000, currentPrice: 300000, baseRent: 1200, currentRent: 1200, minRent: 600, maintenance: 300, count: 0, priceChange: [-0.5, 1.0], occupancy: [80, 100] },
+        prop11: { name: "地方のショッピングモール", basePrice: 800000, currentPrice: 800000, baseRent: 4000, currentRent: 4000, minRent: 2000, maintenance: 1000, count: 0, priceChange: [-1.5, 0.8], occupancy: [50, 95] },
+        prop12: { name: "大型物流倉庫センター", basePrice: 1500000, currentPrice: 1500000, baseRent: 6000, currentRent: 6000, minRent: 3000, maintenance: 1200, count: 0, priceChange: [-0.4, 0.9], occupancy: [90, 100] },
+        prop13: { name: "都心一等地の超高層ビル", basePrice: 8000000, currentPrice: 8000000, baseRent: 25000, currentRent: 25000, minRent: 12500, maintenance: 6000, count: 0, priceChange: [-0.2, 0.8], occupancy: [90, 100] },
+        prop14: { name: "巨大テーマパーク", basePrice: 30000000, currentPrice: 30000000, baseRent: 120000, currentRent: 120000, minRent: 60000, maintenance: 35000, count: 0, priceChange: [-2.0, 2.5], occupancy: [30, 100] },
+        prop15: { name: "国際空港の運営権", basePrice: 80000000, currentPrice: 80000000, baseRent: 350000, currentRent: 350000, minRent: 175000, maintenance: 100000, count: 0, priceChange: [-0.5, 1.0], occupancy: [60, 100] },
+        prop16: { name: "スマートシティ全体開発", basePrice: 200000000, currentPrice: 200000000, baseRent: 800000, currentRent: 800000, minRent: 400000, maintenance: 250000, count: 0, priceChange: [-0.5, 1.2], occupancy: [80, 100] }
     };
     
     let properties = JSON.parse(JSON.stringify(baseProperties));
@@ -351,7 +357,14 @@
         }
         
         state = { 
-            month: 1, cash: initMoney, netWorth: initMoney, lastIncome: 0, currentYear: initYear, currentMonth: initMonth
+            month: 1, 
+            cash: initMoney, 
+            netWorth: initMoney, 
+            lastIncome: 0, 
+            currentYear: initYear, 
+            currentMonth: initMonth,
+            economyPhase: "normal",
+            phaseMonths: 0
         };
         properties = JSON.parse(JSON.stringify(baseProperties)); 
         
@@ -391,7 +404,6 @@
         updateScreen();
     }
 
-    // 月次処理（健全経営モード：現実的な劣化・修繕確率）
     function nextMonth() {
         if (isProcessing) return; 
         const btnNext = document.getElementById('btn-next-month');
@@ -409,6 +421,35 @@
                 state.currentYear++;
             }
 
+            // --- 景気サイクルの進行管理 (およそ6〜7年周期) ---
+            let macroBias = 0;
+            state.phaseMonths++;
+
+            if (state.economyPhase === "normal") {
+                // 約6年(72ヶ月)経過後、毎月一定確率でバブル突入
+                if (state.phaseMonths > 72 && Math.random() < 0.08) {
+                    state.economyPhase = "bubble";
+                    state.phaseMonths = 0;
+                    addLog(`<span style="color:#fbbf24; font-size:1.05em;">📈 【号外】好景気到来！市場に資金が流入し、不動産価格が上昇トレンドに入りました！</span><hr style="border: 0; border-top: 1px dashed #334155; margin: 5px 0;">`);
+                }
+            } else if (state.economyPhase === "bubble") {
+                macroBias = (Math.random() * 0.4 + 0.4); // 毎月 +0.4% 〜 +0.8% の底上げ
+                // 1年〜1年半でバブル崩壊へ
+                if (state.phaseMonths > 12 && Math.random() < 0.1) {
+                    state.economyPhase = "crash";
+                    state.phaseMonths = 0;
+                    addLog(`<span style="color:#f43f5e; font-size:1.05em;">📉 【悲報】バブル崩壊！金利引き上げと金融不安により、不動産相場が急激な暴落に転じました！</span><hr style="border: 0; border-top: 1px dashed #334155; margin: 5px 0;">`);
+                }
+            } else if (state.economyPhase === "crash") {
+                macroBias = -(Math.random() * 0.8 + 0.8); // 毎月 -0.8% 〜 -1.6% の急落
+                // 半年〜1年でパニックが落ち着き平常へ
+                if (state.phaseMonths > 8 && Math.random() < 0.15) {
+                    state.economyPhase = "normal";
+                    state.phaseMonths = 0;
+                    addLog(`<span style="color:#10b981; font-size:1.05em;">🌤️ 【市況】市場はパニックを脱し、相場は通常の落ち着きを取り戻しました。</span><hr style="border: 0; border-top: 1px dashed #334155; margin: 5px 0;">`);
+                }
+            }
+
             let totalRent = 0;
             let totalMaintenance = 0;
             let totalRepair = 0;
@@ -419,12 +460,12 @@
                 let p = properties[key];
                 
                 if (p.count > 0) {
-                    // ① 経年劣化 (毎月0.1%家賃が下落、現実的な約10年で11%下落ペース)
+                    // ① 経年劣化 (毎月0.1%下落)
                     if (p.currentRent > p.minRent) {
                         p.currentRent = Math.max(p.minRent, p.currentRent * 0.999);
                     }
 
-                    // ② 突発的修繕 (所有物件1件ごとに1%の確率で発生、ダメージは0.5%)
+                    // ② 突発的修繕 (1%の確率で発生、ダメージは0.5%)
                     for (let i = 0; i < p.count; i++) {
                         if (Math.random() < 0.01) {
                             let cost = Math.floor(p.currentPrice * 0.005); 
@@ -445,11 +486,11 @@
                 p.previousPrice = p.currentPrice;
                 let pcMin = p.priceChange[0];
                 let pcMax = p.priceChange[1];
-                let changeRate = (Math.random() * (pcMax - pcMin) + pcMin) / 100;
-                p.currentPrice = Math.max(100, Math.floor(p.currentPrice * (1 + changeRate))); 
+                // 個別の変動幅に、現在の経済トレンド（macroBias）を加算
+                let changeRate = (Math.random() * (pcMax - pcMin) + pcMin) + macroBias;
+                p.currentPrice = Math.max(100, Math.round(p.currentPrice * (1 + changeRate / 100))); 
             }
 
-            // 純利益 = 家賃 - 維持費 - 修繕費
             let netIncome = totalRent - totalMaintenance - totalRepair;
             state.lastIncome = netIncome;
             state.cash += netIncome; 
@@ -464,7 +505,6 @@
                 }
                 logText += `<br>▶ 月間収支(純利益): ${sign}${formatMoney(netIncome)}</span><br>`;
                 
-                // 修繕ログを追記
                 if (repairLogs.length > 0) {
                     logText += `<span class="log-repair">${repairLogs.join('<br>')}</span><br>`;
                 }
@@ -488,7 +528,7 @@
     function buy(key) {
         if (isProcessing) return; 
         let p = properties[key];
-        let totalCost = Math.floor(p.currentPrice * 1.03); // 手数料は現実的な3%
+        let totalCost = Math.floor(p.currentPrice * 1.03); 
 
         if (state.cash >= totalCost) {
             state.cash -= totalCost;
@@ -512,7 +552,7 @@
         if (isProcessing) return; 
         let p = properties[key];
         if (p.count > 0) {
-            let totalGain = Math.floor(p.currentPrice * 0.97); // 手数料は現実的な3%
+            let totalGain = Math.floor(p.currentPrice * 0.97); 
             state.cash += totalGain;
             p.count--;
             addLog(`💰 「${p.name}」を売却。<br><span style="font-size:0.85em; color:#94a3b8;">物件価格: ${formatMoney(p.currentPrice)} / 手数料引後: ${formatMoney(totalGain)}</span><br><hr style="border: 0; border-top: 1px dashed #334155; margin: 5px 0;">`);
@@ -544,6 +584,8 @@
             if (!state.currentYear) state.currentYear = 2026;
             if (!state.currentMonth) state.currentMonth = 1;
             if (state.lastIncome === undefined) state.lastIncome = 0;
+            if (!state.economyPhase) state.economyPhase = "normal";
+            if (state.phaseMonths === undefined) state.phaseMonths = 0;
             
             for (let key in baseProperties) {
                 if (properties[key]) {
@@ -583,7 +625,13 @@
             state.netWorth += properties[key].currentPrice * properties[key].count;
         }
 
-        document.getElementById('display-date').innerText = `${state.currentYear}年${state.currentMonth}月 (経過:${state.month}ヶ月)`;
+        // 市況の表示更新
+        let phaseText = "平常 (安定相場)";
+        let phaseColor = "#94a3b8";
+        if (state.economyPhase === "bubble") { phaseText = "📈 バブル (相場高騰中)"; phaseColor = "#fbbf24"; }
+        if (state.economyPhase === "crash") { phaseText = "📉 暴落 (相場急落中)"; phaseColor = "#f43f5e"; }
+
+        document.getElementById('display-date').innerHTML = `${state.currentYear}年${state.currentMonth}月 (経過:${state.month}ヶ月)<br><span style="font-size:0.85em; color:${phaseColor}; margin-top:3px; display:inline-block;">市況: ${phaseText}</span>`;
         
         let incomeEl = document.getElementById('display-income');
         let incomeSign = state.lastIncome > 0 ? "+" : "";
@@ -623,7 +671,6 @@
             let realYieldPct = (((p.currentRent - p.maintenance) * 12) / p.currentPrice * 100).toFixed(1);
             yieldEl.innerText = `${realYieldPct}% (満室時)`;
 
-            // 買値は3%上乗せで判定
             buyBtn.disabled = (state.cash < Math.floor(p.currentPrice * 1.03));
             sellBtn.disabled = (p.count <= 0);
         }
